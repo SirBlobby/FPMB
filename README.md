@@ -192,6 +192,3 @@ A full interactive reference is available in-app at `/api-docs`.
 | PUT | `/notifications/:notifId/read` | Mark one as read |
 | DELETE | `/notifications/:notifId` | Delete a notification |
 
-## License
-
-MIT
