@@ -108,6 +108,10 @@
 	let viewingFile = $state<FileItem | null>(null);
 
 	let fileInput: HTMLInputElement;
+
+	function focusNode(node: HTMLElement) {
+		node.focus();
+	}
 </script>
 
 <svelte:head>
@@ -125,6 +129,7 @@
 		<div class="flex items-center space-x-4">
 			<a
 				href="/team/{teamId}"
+				aria-label="Back to team page"
 				class="text-neutral-400 hover:text-white transition-colors p-2 rounded-md hover:bg-neutral-800 border border-transparent"
 			>
 				<svg
@@ -215,7 +220,7 @@
 				bind:value={folderName}
 				placeholder="Folder name"
 				required
-				autofocus
+				use:focusNode
 				class="flex-1 px-3 py-2 border border-neutral-600 rounded-md bg-neutral-700 text-white placeholder-neutral-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
 			/>
 			<button

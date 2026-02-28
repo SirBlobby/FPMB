@@ -19,6 +19,7 @@
 	let passwordSuccess = $state("");
 	let avatarError = $state("");
 	let avatarSuccess = $state("");
+	let avatarCacheBust = $state("");
 
 	// --- API Keys state ---
 	const ALL_SCOPES = [
@@ -74,6 +75,7 @@
 		try {
 			const updated = await usersApi.uploadAvatar(file);
 			authStore.setUser(updated);
+			avatarCacheBust = "?t=" + Date.now();
 			avatarSuccess = "Avatar updated successfully.";
 		} catch (err: unknown) {
 			avatarError =
@@ -253,7 +255,7 @@
 				<div class="shrink-0">
 					{#if authStore.user?.avatar_url}
 						<img
-							src={authStore.user.avatar_url}
+							src="{authStore.user.avatar_url}{avatarCacheBust}"
 							alt="Avatar"
 							class="h-16 w-16 rounded-full object-cover shadow-inner"
 						/>
@@ -660,7 +662,7 @@
 			{:else}
 				{#each apiKeyList as key (key.id)}
 					<div
-						class="px-6 py-4 flex items-start justify-between gap-4 group hover:bg-white/[0.02] transition-colors"
+						class="px-6 py-4 flex items-start justify-between gap-4 group hover:bg-white/2 transition-colors"
 					>
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-3 mb-1.5">

@@ -276,7 +276,7 @@ export const board = {
 	createCard: (
 		projectId: string,
 		columnId: string,
-		data: Pick<Card, 'title' | 'description' | 'priority' | 'color' | 'due_date' | 'assignees'>
+		data: Pick<Card, 'title' | 'description' | 'priority' | 'color' | 'due_date' | 'assignees' | 'estimated_minutes' | 'actual_minutes'>
 	) =>
 		apiFetch<Card>(`/projects/${projectId}/columns/${columnId}/cards`, {
 			method: 'POST',
@@ -287,7 +287,7 @@ export const board = {
 export const cards = {
 	update: (
 		cardId: string,
-		data: Partial<Pick<Card, 'title' | 'description' | 'priority' | 'color' | 'due_date' | 'assignees' | 'subtasks'>>
+		data: Partial<Pick<Card, 'title' | 'description' | 'priority' | 'color' | 'due_date' | 'assignees' | 'subtasks' | 'estimated_minutes' | 'actual_minutes'>>
 	) => apiFetch<Card>(`/cards/${cardId}`, { method: 'PUT', body: JSON.stringify(data) }),
 
 	move: (cardId: string, column_id: string, position: number) =>

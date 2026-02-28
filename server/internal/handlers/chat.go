@@ -184,25 +184,27 @@ func TeamChatWS(c *websocket.Conn) {
 		}
 
 		var incoming struct {
-			Type    string `json:"type"`
-			Content string `json:"content"`
+			Type      string `json:"type"`
+			Content   string `json:"content"`
+			MessageID string `json:"message_id,omitempty"`
+			ReplyTo   string `json:"reply_to,omitempty"`
 		}
 		if json.Unmarshal(msg, &incoming) != nil {
+			continue
+		}
+
+		teamOID, err := primitive.ObjectIDFromHex(teamID)
+		if err != nil {
+			continue
+		}
+		userOID, err := primitive.ObjectIDFromHex(userID)
+		if err != nil {
 			continue
 		}
 
 		if incoming.Type == "message" {
 			content := strings.TrimSpace(incoming.Content)
 			if content == "" || len(content) > 5000 {
-				continue
-			}
-
-			teamOID, err := primitive.ObjectIDFromHex(teamID)
-			if err != nil {
-				continue
-			}
-			userOID, err := primitive.ObjectIDFromHex(userID)
-			if err != nil {
 				continue
 			}
 
@@ -215,6 +217,12 @@ func TeamChatWS(c *websocket.Conn) {
 				CreatedAt: time.Now(),
 			}
 
+			if incoming.ReplyTo != "" {
+				if replyID, err := primitive.ObjectIDFromHex(incoming.ReplyTo); err == nil {
+					chatMsg.ReplyTo = &replyID
+				}
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			_, _ = database.GetCollection("chat_messages").InsertOne(ctx, chatMsg)
 			cancel()
@@ -224,6 +232,56 @@ func TeamChatWS(c *websocket.Conn) {
 				"message": chatMsg,
 			})
 			room.broadcastAll(outMsg)
+		} else if incoming.Type == "edit" {
+			content := strings.TrimSpace(incoming.Content)
+			if content == "" || len(content) > 5000 || incoming.MessageID == "" {
+				continue
+			}
+			msgID, err := primitive.ObjectIDFromHex(incoming.MessageID)
+			if err != nil {
+				continue
+			}
+
+			now := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			res, err := database.GetCollection("chat_messages").UpdateOne(ctx,
+				bson.M{"_id": msgID, "user_id": userOID, "team_id": teamOID, "deleted": bson.M{"$ne": true}},
+				bson.M{"$set": bson.M{"content": content, "edited_at": now}},
+			)
+			cancel()
+
+			if err == nil && res.ModifiedCount > 0 {
+				outMsg, _ := json.Marshal(map[string]interface{}{
+					"type":       "edit",
+					"message_id": msgID.Hex(),
+					"content":    content,
+					"edited_at":  now,
+				})
+				room.broadcastAll(outMsg)
+			}
+		} else if incoming.Type == "delete" {
+			if incoming.MessageID == "" {
+				continue
+			}
+			msgID, err := primitive.ObjectIDFromHex(incoming.MessageID)
+			if err != nil {
+				continue
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			res, err := database.GetCollection("chat_messages").UpdateOne(ctx,
+				bson.M{"_id": msgID, "user_id": userOID, "team_id": teamOID},
+				bson.M{"$set": bson.M{"deleted": true, "content": ""}},
+			)
+			cancel()
+
+			if err == nil && res.ModifiedCount > 0 {
+				outMsg, _ := json.Marshal(map[string]interface{}{
+					"type":       "delete",
+					"message_id": msgID.Hex(),
+				})
+				room.broadcastAll(outMsg)
+			}
 		}
 
 		if incoming.Type == "typing" {

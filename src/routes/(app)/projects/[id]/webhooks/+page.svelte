@@ -30,8 +30,8 @@
 		try {
 			const created = await projectsApi.createWebhook(projectId, {
 				name: newWebhook.name,
+				type: "discord",
 				url: newWebhook.url,
-				events: ["*"],
 			});
 			webhookList = [...webhookList, created];
 			isModalOpen = false;
@@ -229,7 +229,7 @@
 											</div>
 											<div class="text-xs text-neutral-500 mt-1 capitalize">
 												{wtype} • Last: {formatLastTriggered(
-													webhook.last_triggered,
+													webhook.last_triggered || "",
 												)}
 											</div>
 										</div>
@@ -297,10 +297,13 @@
 
 			<form onsubmit={addWebhook} class="p-6 space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="webhook-type"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Service Type</label
 					>
 					<select
+						id="webhook-type"
 						bind:value={newWebhook.type}
 						class="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-700 text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
 					>
@@ -313,10 +316,12 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Name</label
+					<label
+						for="webhook-name"
+						class="block text-sm font-medium text-neutral-300 mb-1">Name</label
 					>
 					<input
+						id="webhook-name"
 						type="text"
 						bind:value={newWebhook.name}
 						required
@@ -326,10 +331,13 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="webhook-url"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Payload URL</label
 					>
 					<input
+						id="webhook-url"
 						type="url"
 						bind:value={newWebhook.url}
 						required
@@ -339,10 +347,13 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="webhook-secret"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Secret Token (Optional)</label
 					>
 					<input
+						id="webhook-secret"
 						type="password"
 						bind:value={newWebhook.secret}
 						placeholder="Used to sign webhook payloads"

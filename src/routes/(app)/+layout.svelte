@@ -12,6 +12,7 @@
 		authStore.user?.name?.charAt(0).toUpperCase() ?? "U",
 	);
 	let unreadCount = $state(0);
+	let isMobileMenuOpen = $state(false);
 
 	onMount(async () => {
 		await authStore.init();
@@ -162,8 +163,9 @@
 
 			<!-- Mobile menu button -->
 			<button
+				onclick={() => (isMobileMenuOpen = !isMobileMenuOpen)}
 				class="md:hidden text-neutral-400 hover:text-white transition-colors p-2"
-				aria-label="Open menu"
+				aria-label="Toggle menu"
 			>
 				<svg
 					class="h-6 w-6"
@@ -212,6 +214,63 @@
 			</button>
 		</div>
 	</header>
+
+	{#if isMobileMenuOpen}
+		<div
+			class="md:hidden absolute top-16 left-0 right-0 max-h-[calc(100vh-4rem)] overflow-y-auto bg-neutral-800 border-b border-neutral-700 shadow-2xl z-50 flex flex-col pointer-events-auto"
+		>
+			<a
+				href="/"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>Dashboard</a
+			>
+			<a
+				href="/projects"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>Projects</a
+			>
+			<a
+				href="/calendar"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>Calendar</a
+			>
+			<a
+				href="/files"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>Files</a
+			>
+			<a
+				href="/docs"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>Docs</a
+			>
+			<a
+				href="/api-docs"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium"
+				>API Docs</a
+			>
+			<a
+				href="/settings/user"
+				onclick={() => (isMobileMenuOpen = false)}
+				class="px-6 py-4 border-b border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors font-medium border-t-4 border-t-neutral-900"
+				>Settings ({authStore.user?.name})</a
+			>
+			<button
+				onclick={() => {
+					isMobileMenuOpen = false;
+					logout();
+				}}
+				class="text-left px-6 py-4 text-red-400 hover:bg-neutral-700 font-medium"
+				>Log out</button
+			>
+		</div>
+	{/if}
 
 	<!-- Main Content -->
 	<main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">

@@ -64,7 +64,7 @@
 						.filter((c) => c.due_date)
 						.map((c) => ({
 							id: c.id,
-							date: c.due_date.split("T")[0],
+							date: c.due_date!.split("T")[0],
 							title: c.title,
 							time: "",
 							color: priorityColor[c.priority] ?? "blue",
@@ -129,11 +129,8 @@
 	<div class="flex items-center justify-between mb-6 shrink-0">
 		<div>
 			<h1 class="text-3xl font-bold text-white tracking-tight">
-				Organization Calendar
+				Personal Calendar
 			</h1>
-			<p class="text-neutral-400 mt-1">
-				Overview of all team events and milestones.
-			</p>
 		</div>
 		<div class="flex items-center space-x-4">
 			<button
@@ -156,10 +153,12 @@
 <Modal bind:isOpen={isModalOpen} title="Add Event">
 	<form onsubmit={handleAddEvent} class="space-y-4">
 		<div>
-			<label class="block text-sm font-medium text-neutral-300 mb-1"
-				>Title</label
+			<label
+				for="event-title"
+				class="block text-sm font-medium text-neutral-300 mb-1">Title</label
 			>
 			<input
+				id="event-title"
 				type="text"
 				bind:value={newEvent.title}
 				required
@@ -170,10 +169,12 @@
 
 		<div class="grid grid-cols-2 gap-4">
 			<div>
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Date</label
+				<label
+					for="event-date"
+					class="block text-sm font-medium text-neutral-300 mb-1">Date</label
 				>
 				<input
+					id="event-date"
 					type="date"
 					bind:value={newEvent.date}
 					required
@@ -181,10 +182,12 @@
 				/>
 			</div>
 			<div>
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Time</label
+				<label
+					for="event-time"
+					class="block text-sm font-medium text-neutral-300 mb-1">Time</label
 				>
 				<input
+					id="event-time"
 					type="text"
 					bind:value={newEvent.time}
 					placeholder="e.g. 10:00 AM"
@@ -195,10 +198,12 @@
 
 		<div class="grid grid-cols-2 gap-4">
 			<div>
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Color</label
+				<label
+					for="event-color"
+					class="block text-sm font-medium text-neutral-300 mb-1">Color</label
 				>
 				<select
+					id="event-color"
 					bind:value={newEvent.color}
 					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
 				>
@@ -210,10 +215,12 @@
 				</select>
 			</div>
 			<div>
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Team</label
+				<label
+					for="event-team"
+					class="block text-sm font-medium text-neutral-300 mb-1">Team</label
 				>
 				<select
+					id="event-team"
 					bind:value={newEvent.teamId}
 					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
 				>
@@ -225,10 +232,13 @@
 		</div>
 
 		<div>
-			<label class="block text-sm font-medium text-neutral-300 mb-1"
+			<label
+				for="event-desc"
+				class="block text-sm font-medium text-neutral-300 mb-1"
 				>Description</label
 			>
 			<textarea
+				id="event-desc"
 				bind:value={newEvent.description}
 				placeholder="Optional description"
 				rows="2"

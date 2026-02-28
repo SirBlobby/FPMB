@@ -182,10 +182,13 @@
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={() => (showNewTeam = false)}
+		onkeydown={(e) => e.key === "Escape" && (showNewTeam = false)}
+		role="dialog"
+		aria-label="Create Team dialog"
+		tabindex="-1"
 	>
 		<div
 			class="bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl w-full max-w-md mx-4"
-			onclick={(e) => e.stopPropagation()}
 		>
 			<div
 				class="flex items-center justify-between p-4 border-b border-neutral-700"

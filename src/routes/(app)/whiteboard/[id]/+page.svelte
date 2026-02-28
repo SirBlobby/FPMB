@@ -7,9 +7,16 @@
 	import { authStore } from "$lib/stores/auth.svelte";
 
 	let boardId = $derived($page.params.id ?? "");
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D | null = null;
-	let canvasContainer: HTMLDivElement;
+	let canvas: HTMLCanvasElement = $state() as any;
+	let ctx: CanvasRenderingContext2D | null = $state(null) as any;
+	let canvasContainer: HTMLDivElement = $state() as any;
+
+	let textInputRef: HTMLInputElement | null = $state(null);
+	$effect(() => {
+		if (showTextInput && textInputRef) {
+			textInputRef.focus();
+		}
+	});
 
 	type DrawObject =
 		| {
@@ -385,7 +392,9 @@
 	}
 
 	onMount(() => {
-		ctx = canvas.getContext("2d", { willReadFrequently: true });
+		ctx = canvas?.getContext("2d", {
+			willReadFrequently: true,
+		}) as CanvasRenderingContext2D | null;
 		if (!ctx) return;
 		resizeCanvas();
 		window.addEventListener("resize", resizeCanvas);
@@ -1072,6 +1081,7 @@
 			onmouseup={endPosition}
 			onmousemove={draw}
 			onmouseout={endPosition}
+			onblur={endPosition}
 			ondblclick={handleDblClick}
 			class="absolute inset-0 w-full h-full touch-none block {currentTool ===
 			'text'
@@ -1090,10 +1100,10 @@
 			{@const scaleY = canvas ? canvas.height / (rect.height || 1) : 1}
 			<input
 				type="text"
+				bind:this={textInputRef}
 				bind:value={textInputValue}
 				onkeydown={handleTextKeydown}
 				onblur={commitText}
-				autofocus
 				style="position:absolute; left:{textX / scaleX}px; top:{(textY -
 					fontSize) /
 					scaleY}px; font-size:{fontSize}px; font-family:sans-serif; color:{strokeColor}; background:transparent; border:1px dashed #555; outline:none; min-width:100px; padding:2px 4px; z-index:30;"

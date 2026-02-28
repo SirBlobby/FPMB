@@ -121,6 +121,7 @@
 		<div class="flex items-center space-x-4">
 			<a
 				href="/"
+				aria-label="Back to home"
 				class="text-neutral-400 hover:text-white transition-colors p-2 rounded-md hover:bg-neutral-800 border border-transparent"
 			>
 				<svg

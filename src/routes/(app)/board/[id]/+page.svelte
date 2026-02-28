@@ -139,6 +139,7 @@
 
 	let isModalOpen = $state(false);
 	let activeColumnIdForNewTask = $state<string | null>(null);
+	let originalColumnIdForTask = $state<string | null>(null);
 	let editingCardId = $state<string | null>(null);
 
 	let newTask = $state({
@@ -148,6 +149,8 @@
 		color: "neutral",
 		dueDate: "",
 		assignees: [] as string[],
+		estimatedMinutes: "",
+		actualMinutes: "",
 		subtasks: [] as { id: number; text: string; done: boolean }[],
 	});
 
@@ -200,6 +203,7 @@
 
 	function openCreateTaskModal(columnId: string) {
 		activeColumnIdForNewTask = columnId;
+		originalColumnIdForTask = columnId;
 		editingCardId = null;
 		newTask = {
 			title: "",
@@ -208,6 +212,8 @@
 			color: "neutral",
 			dueDate: "",
 			assignees: [],
+			estimatedMinutes: "",
+			actualMinutes: "",
 			subtasks: [],
 		};
 		assigneeInput = "";
@@ -217,6 +223,7 @@
 
 	function openEditTaskModal(columnId: string, card: LocalCard) {
 		activeColumnIdForNewTask = columnId;
+		originalColumnIdForTask = columnId;
 		editingCardId = card.id;
 		newTask = {
 			title: card.title,
@@ -225,6 +232,8 @@
 			color: card.color || "neutral",
 			dueDate: card.due_date ? card.due_date.split("T")[0] : "",
 			assignees: [...(card.assignees || [])],
+			estimatedMinutes: card.estimated_minutes?.toString() || "",
+			actualMinutes: card.actual_minutes?.toString() || "",
 			subtasks: card.subtasks.map((st) => ({ ...st })),
 		};
 		assigneeInput = "";
@@ -257,15 +266,42 @@
 				color: newTask.color,
 				due_date: newTask.dueDate,
 				assignees: newTask.assignees,
+				estimated_minutes: newTask.estimatedMinutes
+					? parseInt(newTask.estimatedMinutes)
+					: undefined,
+				actual_minutes: newTask.actualMinutes
+					? parseInt(newTask.actualMinutes)
+					: undefined,
 				subtasks: newTask.subtasks.map((st) => ({
 					id: st.id,
 					text: st.text,
 					done: st.done,
 				})),
 			});
-			targetCol.cards = targetCol.cards.map((card) =>
-				card.id === editingCardId
-					? {
+
+			if (originalColumnIdForTask === activeColumnIdForNewTask) {
+				targetCol.cards = targetCol.cards.map((card) =>
+					card.id === editingCardId
+						? {
+								...card,
+								...updated,
+								subtasks: (updated.subtasks ?? []).map((st) => ({
+									id: st.id,
+									text: st.text,
+									done: st.done,
+								})),
+							}
+						: card,
+				);
+			} else {
+				const oldCol = columns.find((c) => c.id === originalColumnIdForTask);
+				if (oldCol) {
+					const cardIndex = oldCol.cards.findIndex(
+						(c) => c.id === editingCardId,
+					);
+					if (cardIndex !== -1) {
+						const [card] = oldCol.cards.splice(cardIndex, 1);
+						const formattedCard = {
 							...card,
 							...updated,
 							subtasks: (updated.subtasks ?? []).map((st) => ({
@@ -273,9 +309,18 @@
 								text: st.text,
 								done: st.done,
 							})),
-						}
-					: card,
-			);
+						};
+						targetCol.cards.push(formattedCard);
+						await cardsApi
+							.move(
+								editingCardId,
+								activeColumnIdForNewTask!,
+								targetCol.cards.length - 1,
+							)
+							.catch(() => {});
+					}
+				}
+			}
 		} else {
 			const created = await boardApi.createCard(
 				boardId,
@@ -287,6 +332,12 @@
 					color: newTask.color,
 					due_date: newTask.dueDate || "",
 					assignees: newTask.assignees,
+					estimated_minutes: newTask.estimatedMinutes
+						? parseInt(newTask.estimatedMinutes)
+						: undefined,
+					actual_minutes: newTask.actualMinutes
+						? parseInt(newTask.actualMinutes)
+						: undefined,
 				},
 			);
 			targetCol.cards = [...targetCol.cards, { ...created, subtasks: [] }];
@@ -561,8 +612,8 @@
 										ondragstart={(e) => handleDragStart(card.id, column.id, e)}
 										class="bg-neutral-750 p-4 rounded-md border border-neutral-600 shadow-sm {isArchived
 											? 'cursor-default'
-											: 'cursor-grab active:cursor-grabbing'} hover:border-neutral-500 transition-colors flex flex-col gap-2 group relative overflow-hidden"
-										role="listitem"
+											: 'cursor-pointer hover:border-neutral-500'} transition-colors flex flex-col gap-2 group relative overflow-hidden"
+										role="button"
 										onclick={() =>
 											!isArchived && openEditTaskModal(column.id, card)}
 										onkeydown={(e) =>
@@ -642,6 +693,20 @@
 														)}
 													</div>
 												{/if}
+												{#if card.estimated_minutes || card.actual_minutes}
+													<div
+														class="flex items-center text-[10px] font-medium text-neutral-400 bg-neutral-700/50 px-1.5 py-1 rounded gap-1"
+													>
+														<Icon
+															icon="lucide:clock"
+															class="w-3 h-3 text-neutral-500"
+														/>
+														<span
+															>{card.actual_minutes || 0}m / {card.estimated_minutes ||
+																"?"}m</span
+														>
+													</div>
+												{/if}
 											</div>
 											{#if card.assignees && card.assignees.length > 0}
 												<div class="flex -space-x-1 overflow-hidden">
@@ -696,6 +761,8 @@
 							<th class="px-4 py-3 font-medium">Status</th>
 							<th class="px-4 py-3 font-medium">Priority</th>
 							<th class="px-4 py-3 font-medium">Due Date</th>
+							<th class="px-4 py-3 font-medium">Est. (m)</th>
+							<th class="px-4 py-3 font-medium">Act. (m)</th>
 							<th class="px-4 py-3 font-medium">Assignees</th>
 							<th class="px-4 py-3 font-medium">Subtasks</th>
 						</tr>
@@ -751,6 +818,20 @@
 										<span class="text-neutral-600">—</span>
 									{/if}
 								</td>
+								<td class="px-4 py-3 text-neutral-400 text-xs">
+									{#if card.estimated_minutes != null}
+										{card.estimated_minutes}
+									{:else}
+										<span class="text-neutral-600">—</span>
+									{/if}
+								</td>
+								<td class="px-4 py-3 text-neutral-400 text-xs">
+									{#if card.actual_minutes != null}
+										{card.actual_minutes}
+									{:else}
+										<span class="text-neutral-600">—</span>
+									{/if}
+								</td>
 								<td class="px-4 py-3">
 									{#if card.assignees?.length}
 										<div class="flex -space-x-1">
@@ -777,7 +858,7 @@
 							</tr>
 						{:else}
 							<tr
-								><td colspan="6" class="px-4 py-8 text-center text-neutral-500"
+								><td colspan="8" class="px-4 py-8 text-center text-neutral-500"
 									>No tasks yet.</td
 								></tr
 							>
@@ -793,7 +874,7 @@
 				? new Date(
 						Math.min(
 							...datedCards.map((c) =>
-								new Date(c.created_at || c.due_date).getTime(),
+								new Date(c.created_at || c.due_date!).getTime(),
 							),
 							now.getTime() - 7 * 86400000,
 						),
@@ -802,7 +883,7 @@
 			{@const ganttEnd = datedCards.length
 				? new Date(
 						Math.max(
-							...datedCards.map((c) => new Date(c.due_date).getTime()),
+							...datedCards.map((c) => new Date(c.due_date!).getTime()),
 							now.getTime() + 7 * 86400000,
 						),
 					)
@@ -847,8 +928,8 @@
 						</div>
 					{:else}
 						{#each datedCards as card (card.id)}
-							{@const created = new Date(card.created_at || card.due_date)}
-							{@const due = new Date(card.due_date)}
+							{@const created = new Date(card.created_at || card.due_date!)}
+							{@const due = new Date(card.due_date!)}
 							{@const startOffset = Math.max(
 								0,
 								((created.getTime() - ganttStart.getTime()) /
@@ -868,6 +949,12 @@
 									class="w-56 shrink-0 px-4 py-3 border-r border-neutral-700 flex items-center gap-2 cursor-pointer"
 									onclick={() =>
 										!isArchived && openEditTaskModal(card.columnId, card)}
+									onkeydown={(e) =>
+										e.key === "Enter" &&
+										!isArchived &&
+										openEditTaskModal(card.columnId, card)}
+									role="button"
+									tabindex="0"
 								>
 									{#if card.color && card.color !== "neutral"}<div
 											class="w-1 h-5 rounded-full {colorClasses[card.color]}"
@@ -936,6 +1023,12 @@
 										class="bg-neutral-800 border border-neutral-700 rounded-lg p-3 hover:border-neutral-600 transition-colors cursor-pointer group"
 										onclick={() =>
 											!isArchived && openEditTaskModal(column.id, card)}
+										onkeydown={(e) =>
+											e.key === "Enter" &&
+											!isArchived &&
+											openEditTaskModal(column.id, card)}
+										role="button"
+										tabindex="0"
 									>
 										<div class="flex items-start justify-between gap-2">
 											<div class="flex items-center gap-2 min-w-0">
@@ -971,7 +1064,7 @@
 												{#if card.due_date}
 													<span class="flex items-center gap-1">
 														<Icon icon="lucide:calendar" class="w-3 h-3" />
-														{new Date(card.due_date).toLocaleDateString(
+														{new Date(card.due_date!).toLocaleDateString(
 															"en-US",
 															{ month: "short", day: "numeric" },
 														)}
@@ -1024,224 +1117,337 @@
 <Modal
 	bind:isOpen={isModalOpen}
 	title={editingCardId ? "Edit Task" : "Create New Task"}
+	maxWidth="max-w-5xl"
 >
-	<div class="space-y-6">
-		<div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-			<div class="md:col-span-8">
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Title</label
+	<div class="flex flex-col md:flex-row gap-8">
+		<!-- Left Main Content Area -->
+		<div class="flex-1 space-y-6">
+			<div>
+				<label
+					for="task-title-input"
+					class="block text-sm font-semibold text-neutral-300 mb-1.5"
+					>Task Title</label
 				>
 				<input
+					id="task-title-input"
 					type="text"
 					bind:value={newTask.title}
-					placeholder="Task title"
-					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm placeholder-neutral-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
+					placeholder="Enter a descriptive title..."
+					class="block w-full px-4 py-3 text-lg font-medium border border-neutral-600 rounded-lg shadow-sm placeholder-neutral-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-neutral-700/50 text-white transition-all"
 				/>
 			</div>
-			<div class="md:col-span-4 grid grid-cols-2 gap-2">
-				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Priority</label
-					>
-					<select
-						bind:value={newTask.priority}
-						class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
-					>
-						<option value="Low">Low</option>
-						<option value="Medium">Medium</option>
-						<option value="High">High</option>
-						<option value="Urgent">Urgent</option>
-					</select>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Color</label
-					>
-					<select
-						bind:value={newTask.color}
-						class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
-					>
-						<option value="neutral">None</option>
-						<option value="red">Red</option>
-						<option value="blue">Blue</option>
-						<option value="green">Green</option>
-						<option value="yellow">Yellow</option>
-						<option value="purple">Purple</option>
-					</select>
-				</div>
-			</div>
-		</div>
 
-		<div>
-			<div class="flex items-center justify-between mb-1">
-				<label class="block text-sm font-medium text-neutral-300"
-					>Description</label
-				>
-				<div class="flex items-center space-x-2">
-					<button
-						class="text-xs font-medium px-2 py-1 rounded {previewMarkdown
-							? 'text-neutral-400 hover:bg-neutral-700'
-							: 'bg-neutral-700 text-white'}"
-						onclick={() => (previewMarkdown = false)}>Write</button
-					>
-					<button
-						class="text-xs font-medium px-2 py-1 rounded {previewMarkdown
-							? 'bg-neutral-700 text-white'
-							: 'text-neutral-400 hover:bg-neutral-700'}"
-						onclick={() => (previewMarkdown = true)}>Preview</button
-					>
-				</div>
-			</div>
-			<div
-				class="border border-neutral-600 rounded-md bg-neutral-700 min-h-[120px]"
-			>
-				{#if previewMarkdown}
-					<div class="p-4 h-full">
-						{#if newTask.description}
-							<Markdown content={newTask.description} files={projectFiles} />
-						{:else}
-							<p class="text-neutral-500 italic text-sm">
-								No description provided.
-							</p>
-						{/if}
-					</div>
-				{:else}
-					<textarea
-						bind:value={newTask.description}
-						placeholder="Supports Markdown format..."
-						class="block w-full h-full min-h-[120px] p-3 border-0 bg-transparent text-white placeholder-neutral-500 focus:ring-0 sm:text-sm resize-y"
-					></textarea>
-				{/if}
-			</div>
-		</div>
-
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<div>
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Due Date</label
-				>
-				<input
-					type="date"
-					bind:value={newTask.dueDate}
-					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
-				/>
-			</div>
-			<div class="relative">
-				<label class="block text-sm font-medium text-neutral-300 mb-1"
-					>Assignees</label
-				>
-				{#if newTask.assignees.length > 0}
-					<div class="flex flex-wrap gap-1 mb-2">
-						{#each newTask.assignees as email}
-							<span
-								class="inline-flex items-center gap-1 bg-blue-600/20 text-blue-300 border border-blue-500/30 text-xs px-2 py-0.5 rounded-full"
-							>
-								{email}
-								<button
-									onclick={() => removeAssignee(email)}
-									class="hover:text-white ml-0.5"
-								>
-									<Icon icon="lucide:x" class="w-3 h-3" />
-								</button>
-							</span>
-						{/each}
-					</div>
-				{/if}
-				<input
-					type="text"
-					value={assigneeInput}
-					oninput={handleAssigneeInput}
-					placeholder="Type @ to search users..."
-					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm placeholder-neutral-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
-				/>
-				{#if showUserDropdown && userSearchResults.length > 0}
-					<div
-						class="absolute z-50 w-full mt-1 bg-neutral-800 border border-neutral-600 rounded-md shadow-lg overflow-hidden"
+				<div class="flex items-center justify-between mb-2">
+					<label
+						for="task-desc-input"
+						class="block text-sm font-semibold text-neutral-300"
+						>Description</label
 					>
-						{#each userSearchResults as user}
-							<button
-								type="button"
-								onclick={() => selectUser(user)}
-								class="w-full flex items-center gap-3 px-3 py-2 hover:bg-neutral-700 transition-colors text-left"
-							>
-								<div
-									class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0"
-								>
-									{user.name.charAt(0)}
-								</div>
-								<div class="min-w-0">
-									<div class="text-sm font-medium text-white truncate">
-										{user.name}
-									</div>
-									<div class="text-xs text-neutral-400 truncate">
-										{user.email}
-									</div>
-								</div>
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</div>
-
-		<div>
-			<label class="block text-sm font-medium text-neutral-300 mb-2"
-				>Subtasks</label
-			>
-			<ul class="space-y-2 mb-3">
-				{#each newTask.subtasks as subtask, i}
-					<li class="flex items-center gap-2 text-sm text-neutral-200">
-						<input
-							type="checkbox"
-							bind:checked={newTask.subtasks[i].done}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-neutral-600 rounded bg-neutral-700"
-						/>
-						<span class={subtask.done ? "line-through text-neutral-500" : ""}
-							>{subtask.text}</span
+					<div
+						class="flex items-center bg-neutral-800 rounded-md border border-neutral-700 p-0.5"
+					>
+						<button
+							class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors {previewMarkdown
+								? 'text-neutral-400 hover:text-neutral-300'
+								: 'bg-neutral-700 text-white shadow-sm'}"
+							onclick={() => (previewMarkdown = false)}>Write</button
 						>
 						<button
-							class="ml-auto text-neutral-500 hover:text-red-400"
-							onclick={() =>
-								(newTask.subtasks = newTask.subtasks.filter(
-									(st) => st.id !== subtask.id,
-								))}
+							class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors {previewMarkdown
+								? 'bg-neutral-700 text-white shadow-sm'
+								: 'text-neutral-400 hover:text-neutral-300'}"
+							onclick={() => (previewMarkdown = true)}>Preview</button
 						>
-							<Icon icon="lucide:x" class="w-4 h-4" />
-						</button>
-					</li>
-				{/each}
-			</ul>
-			<form onsubmit={addSubtask} class="flex gap-2">
-				<input
-					type="text"
-					bind:value={newSubtaskText}
-					placeholder="Add a subtask..."
-					class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm placeholder-neutral-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
-				/>
-				<button
-					type="submit"
-					class="bg-neutral-600 hover:bg-neutral-500 text-white px-3 py-2 rounded-md transition-colors"
+					</div>
+				</div>
+				<div
+					class="border border-neutral-600 rounded-lg bg-neutral-700/30 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 min-h-[200px]"
 				>
-					Add
-				</button>
-			</form>
+					{#if previewMarkdown}
+						<div class="p-5 h-full prose prose-invert max-w-none text-sm">
+							{#if newTask.description}
+								<Markdown content={newTask.description} files={projectFiles} />
+							{:else}
+								<p class="text-neutral-500 italic">No description provided.</p>
+							{/if}
+						</div>
+					{:else}
+						<textarea
+							id="task-desc-input"
+							bind:value={newTask.description}
+							placeholder="Add context, notes, or criteria... (Markdown supported)"
+							class="block w-full h-full min-h-[200px] p-4 text-sm border-0 bg-transparent text-white placeholder-neutral-500 focus:ring-0 resize-y"
+						></textarea>
+					{/if}
+				</div>
+			</div>
+
+			<div>
+				<div class="flex items-center justify-between mb-3">
+					<label
+						for="new-subtask-input"
+						class="block text-sm font-semibold text-neutral-300">Subtasks</label
+					>
+					<span
+						class="text-xs font-medium text-neutral-500 bg-neutral-800 px-2 py-0.5 rounded-full border border-neutral-700"
+					>
+						{newTask.subtasks.filter((s) => s.done).length} / {newTask.subtasks
+							.length}
+					</span>
+				</div>
+				<div
+					class="space-y-2 mb-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar"
+				>
+					{#each newTask.subtasks as subtask, i}
+						<div
+							class="group flex items-center gap-3 p-2 hover:bg-neutral-700/30 rounded-lg transition-colors border border-transparent hover:border-neutral-700/50"
+						>
+							<input
+								type="checkbox"
+								bind:checked={newTask.subtasks[i].done}
+								class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-neutral-500 rounded bg-neutral-800 cursor-pointer"
+							/>
+							<span
+								class="text-sm flex-1 {subtask.done
+									? 'line-through text-neutral-500'
+									: 'text-neutral-200'}">{subtask.text}</span
+							>
+							<button
+								class="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
+								onclick={() =>
+									(newTask.subtasks = newTask.subtasks.filter(
+										(st) => st.id !== subtask.id,
+									))}
+								title="Remove subtask"
+							>
+								<Icon icon="lucide:x" class="w-4 h-4" />
+							</button>
+						</div>
+					{:else}
+						<div
+							class="text-center py-4 border border-dashed border-neutral-700 rounded-lg bg-neutral-800/20"
+						>
+							<p class="text-xs text-neutral-500 italic">
+								Break this task into smaller steps.
+							</p>
+						</div>
+					{/each}
+				</div>
+				<form onsubmit={addSubtask} class="relative">
+					<input
+						id="new-subtask-input"
+						type="text"
+						bind:value={newSubtaskText}
+						placeholder="Add a new subtask..."
+						class="block w-full pl-4 pr-16 py-2.5 border border-neutral-600 rounded-lg placeholder-neutral-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-neutral-700/50 text-white"
+					/>
+					<button
+						type="submit"
+						disabled={!newSubtaskText.trim()}
+						class="absolute right-1.5 top-1.5 bottom-1.5 bg-neutral-600 hover:bg-neutral-500 disabled:opacity-50 disabled:hover:bg-neutral-600 text-white px-3 rounded-md transition-colors text-xs font-medium"
+					>
+						Add
+					</button>
+				</form>
+			</div>
 		</div>
 
-		<div class="flex justify-end pt-4 border-t border-neutral-700 gap-3">
-			<button
-				onclick={() => (isModalOpen = false)}
-				class="bg-transparent hover:bg-neutral-700 text-neutral-300 font-medium py-2 px-4 rounded-md border border-neutral-600 transition-colors text-sm"
-			>
-				Cancel
-			</button>
-			<button
-				onclick={saveNewTask}
-				disabled={!newTask.title.trim()}
-				class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md shadow-sm border border-transparent transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-			>
-				{editingCardId ? "Save Changes" : "Create Task"}
-			</button>
+		<!-- Right Sidebar: Metadata & Attributes -->
+		<div
+			class="w-full md:w-80 shrink-0 flex flex-col gap-5 border-t md:border-t-0 md:border-l border-neutral-700 pt-6 md:pt-0 md:pl-6"
+		>
+			<div class="space-y-4">
+				<h3 class="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+					Properties
+				</h3>
+
+				<!-- Status (Column) mapping if we wanted to change status - currently tied to activeColumnIdForNewTask -->
+				{#if editingCardId && activeColumnIdForNewTask}
+					<div>
+						<label
+							class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+							><Icon icon="lucide:columns" class="w-3.5 h-3.5" /> Stage</label
+						>
+						<select
+							bind:value={activeColumnIdForNewTask}
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white font-medium"
+						>
+							{#each columns as column}
+								<option value={column.id}>{column.title}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label
+							class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+							><Icon icon="lucide:target" class="w-3.5 h-3.5" /> Priority</label
+						>
+						<select
+							bind:value={newTask.priority}
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white"
+						>
+							<option value="Low">Low</option>
+							<option value="Medium">Medium</option>
+							<option value="High">High</option>
+							<option value="Urgent">Urgent</option>
+						</select>
+					</div>
+					<div>
+						<label
+							class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+							><Icon icon="lucide:palette" class="w-3.5 h-3.5" /> Label</label
+						>
+						<select
+							bind:value={newTask.color}
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white"
+						>
+							<option value="neutral">None</option>
+							<option value="red">Red</option>
+							<option value="blue">Blue</option>
+							<option value="green">Green</option>
+							<option value="yellow">Yellow</option>
+							<option value="purple">Purple</option>
+						</select>
+					</div>
+				</div>
+
+				<div>
+					<label
+						class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+						><Icon icon="lucide:calendar" class="w-3.5 h-3.5" /> Due Date</label
+					>
+					<input
+						type="date"
+						bind:value={newTask.dueDate}
+						class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white"
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label
+							class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+							><Icon icon="lucide:clock" class="w-3.5 h-3.5" /> Est. (m)</label
+						>
+						<input
+							type="number"
+							bind:value={newTask.estimatedMinutes}
+							min="0"
+							placeholder="ex: 60"
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white placeholder-neutral-500"
+						/>
+					</div>
+					<div>
+						<label
+							class="text-xs font-semibold text-neutral-400 mb-1.5 flex items-center gap-1.5"
+							><Icon icon="lucide:clock-4" class="w-3.5 h-3.5" /> Act. (m)</label
+						>
+						<input
+							type="number"
+							bind:value={newTask.actualMinutes}
+							min="0"
+							placeholder="ex: 45"
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white placeholder-neutral-500"
+						/>
+					</div>
+				</div>
+
+				<div class="pt-2">
+					<label
+						class="text-xs font-semibold text-neutral-400 mb-2 flex items-center gap-1.5"
+						><Icon icon="lucide:users" class="w-3.5 h-3.5" /> Assignees</label
+					>
+
+					{#if newTask.assignees.length > 0}
+						<div class="flex flex-col gap-1.5 mb-3">
+							{#each newTask.assignees as email}
+								<div
+									class="flex items-center justify-between bg-neutral-800/50 border border-neutral-700 px-2.5 py-1.5 rounded-md"
+								>
+									<div class="flex items-center gap-2 overflow-hidden">
+										<div
+											class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white uppercase shrink-0"
+										>
+											{email.charAt(0)}
+										</div>
+										<span class="text-xs text-neutral-300 truncate"
+											>{email}</span
+										>
+									</div>
+									<button
+										onclick={() => removeAssignee(email)}
+										class="text-neutral-500 hover:text-red-400 transition-colors shrink-0 ml-2"
+										title="Remove assignee"
+									>
+										<Icon icon="lucide:x" class="w-3.5 h-3.5" />
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="relative">
+						<input
+							type="text"
+							value={assigneeInput}
+							oninput={handleAssigneeInput}
+							placeholder="Type @ to search..."
+							class="w-full px-3 py-2 border border-neutral-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-neutral-700/80 text-white placeholder-neutral-500"
+						/>
+						{#if showUserDropdown && userSearchResults.length > 0}
+							<div
+								class="absolute z-50 w-full mt-1 bg-neutral-800 border border-neutral-600 rounded-lg shadow-xl overflow-hidden drop-shadow-2xl"
+							>
+								{#each userSearchResults as user}
+									<button
+										type="button"
+										onclick={() => selectUser(user)}
+										class="w-full flex items-center gap-3 px-3 py-2 hover:bg-neutral-700 transition-colors text-left"
+									>
+										<div
+											class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white uppercase shrink-0"
+										>
+											{user.name.charAt(0)}
+										</div>
+										<div class="min-w-0">
+											<div class="text-xs font-semibold text-white truncate">
+												{user.name}
+											</div>
+											<div class="text-[10px] text-neutral-400 truncate">
+												{user.email}
+											</div>
+										</div>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+			</div>
 		</div>
+	</div>
+
+	<!-- Bottom Action Bar -->
+	<div
+		class="mt-8 pt-5 border-t border-neutral-700 flex justify-end gap-3 shrink-0"
+	>
+		<button
+			onclick={() => (isModalOpen = false)}
+			class="px-5 py-2.5 rounded-lg text-sm font-medium text-neutral-300 hover:text-white hover:bg-neutral-700/50 transition-colors focus:ring-2 focus:ring-neutral-600 focus:outline-none"
+		>
+			Cancel
+		</button>
+		<button
+			onclick={saveNewTask}
+			disabled={!newTask.title.trim()}
+			class="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-neutral-800 focus:outline-none"
+		>
+			{editingCardId ? "Save Changes" : "Create Task"}
+		</button>
 	</div>
 </Modal>
 

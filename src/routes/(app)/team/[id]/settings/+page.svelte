@@ -137,10 +137,13 @@
 		<form onsubmit={saveGeneral} class="p-6 space-y-4">
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="team-name"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Team Name</label
 					>
 					<input
+						id="team-name"
 						type="text"
 						bind:value={teamName}
 						class="block w-full px-3 py-2 border border-neutral-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-neutral-700 text-white"
@@ -186,12 +189,16 @@
 				{/if}
 			</div>
 			<div class="flex flex-col gap-3">
-				<label class="block text-sm font-medium text-neutral-300">
+				<label
+					for="team-avatar"
+					class="block text-sm font-medium text-neutral-300"
+				>
 					Image file <span class="text-neutral-500 font-normal"
 						>(jpg, png, gif, webp)</span
 					>
 				</label>
 				<input
+					id="team-avatar"
 					type="file"
 					accept=".jpg,.jpeg,.png,.gif,.webp"
 					onchange={handleAvatarChange}
@@ -234,12 +241,16 @@
 				{/if}
 			</div>
 			<div class="flex flex-col gap-3">
-				<label class="block text-sm font-medium text-neutral-300">
+				<label
+					for="team-banner"
+					class="block text-sm font-medium text-neutral-300"
+				>
 					Image file <span class="text-neutral-500 font-normal"
 						>(jpg, png, gif, webp)</span
 					>
 				</label>
 				<input
+					id="team-banner"
 					type="file"
 					accept=".jpg,.jpeg,.png,.gif,.webp"
 					onchange={handleBannerChange}

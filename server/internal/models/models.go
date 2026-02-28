@@ -73,20 +73,22 @@ type Subtask struct {
 }
 
 type Card struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty"        json:"id"`
-	ColumnID    primitive.ObjectID `bson:"column_id"            json:"column_id"`
-	ProjectID   primitive.ObjectID `bson:"project_id"           json:"project_id"`
-	Title       string             `bson:"title"                json:"title"`
-	Description string             `bson:"description"          json:"description"`
-	Priority    string             `bson:"priority"             json:"priority"`
-	Color       string             `bson:"color"                json:"color"`
-	DueDate     *time.Time         `bson:"due_date,omitempty"   json:"due_date,omitempty"`
-	Assignees   []string           `bson:"assignees"            json:"assignees"`
-	Subtasks    []Subtask          `bson:"subtasks"             json:"subtasks"`
-	Position    int                `bson:"position"             json:"position"`
-	CreatedBy   primitive.ObjectID `bson:"created_by"           json:"created_by"`
-	CreatedAt   time.Time          `bson:"created_at"           json:"created_at"`
-	UpdatedAt   time.Time          `bson:"updated_at"           json:"updated_at"`
+	ID               primitive.ObjectID `bson:"_id,omitempty"        json:"id"`
+	ColumnID         primitive.ObjectID `bson:"column_id"            json:"column_id"`
+	ProjectID        primitive.ObjectID `bson:"project_id"           json:"project_id"`
+	Title            string             `bson:"title"                json:"title"`
+	Description      string             `bson:"description"          json:"description"`
+	Priority         string             `bson:"priority"             json:"priority"`
+	Color            string             `bson:"color"                json:"color"`
+	DueDate          *time.Time         `bson:"due_date,omitempty"   json:"due_date,omitempty"`
+	Assignees        []string           `bson:"assignees"            json:"assignees"`
+	EstimatedMinutes *int               `bson:"estimated_minutes,omitempty" json:"estimated_minutes,omitempty"`
+	ActualMinutes    *int               `bson:"actual_minutes,omitempty"    json:"actual_minutes,omitempty"`
+	Subtasks         []Subtask          `bson:"subtasks"             json:"subtasks"`
+	Position         int                `bson:"position"             json:"position"`
+	CreatedBy        primitive.ObjectID `bson:"created_by"           json:"created_by"`
+	CreatedAt        time.Time          `bson:"created_at"           json:"created_at"`
+	UpdatedAt        time.Time          `bson:"updated_at"           json:"updated_at"`
 }
 
 type Event struct {
@@ -175,10 +177,13 @@ type APIKey struct {
 }
 
 type ChatMessage struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty"          json:"id"`
-	TeamID    primitive.ObjectID `bson:"team_id"                json:"team_id"`
-	UserID    primitive.ObjectID `bson:"user_id"                json:"user_id"`
-	UserName  string             `bson:"user_name"              json:"user_name"`
-	Content   string             `bson:"content"                json:"content"`
-	CreatedAt time.Time          `bson:"created_at"             json:"created_at"`
+	ID        primitive.ObjectID  `bson:"_id,omitempty"          json:"id"`
+	TeamID    primitive.ObjectID  `bson:"team_id"                json:"team_id"`
+	UserID    primitive.ObjectID  `bson:"user_id"                json:"user_id"`
+	UserName  string              `bson:"user_name"              json:"user_name"`
+	Content   string              `bson:"content"                json:"content"`
+	ReplyTo   *primitive.ObjectID `bson:"reply_to,omitempty"     json:"reply_to,omitempty"`
+	EditedAt  *time.Time          `bson:"edited_at,omitempty"    json:"edited_at,omitempty"`
+	Deleted   bool                `bson:"deleted,omitempty"      json:"deleted,omitempty"`
+	CreatedAt time.Time           `bson:"created_at"             json:"created_at"`
 }

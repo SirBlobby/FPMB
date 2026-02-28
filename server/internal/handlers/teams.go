@@ -526,12 +526,12 @@ func uploadTeamImage(c *fiber.Ctx, imageType string) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save image"})
 	}
 
-	imageURL := fmt.Sprintf("/api/teams/%s/%s", teamID.Hex(), imageType)
+	imageURL := fmt.Sprintf("/api/team-media/%s/%s", teamID.Hex(), imageType)
 	field := imageType + "_url"
 
 	col := database.GetCollection("teams")
 	if _, err := col.UpdateOne(ctx, bson.M{"_id": teamID}, bson.M{"$set": bson.M{
-		field:      imageURL,
+		field:        imageURL,
 		"updated_at": time.Now(),
 	}}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update team"})
@@ -599,4 +599,26 @@ func ServeTeamAvatar(c *fiber.Ctx) error {
 
 func ServeTeamBanner(c *fiber.Ctx) error {
 	return serveTeamImage(c, "banner")
+}
+
+func ServePublicTeamImage(c *fiber.Ctx) error {
+	teamID := c.Params("teamId")
+	imageType := c.Params("imageType")
+	if _, err := primitive.ObjectIDFromHex(teamID); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid team ID"})
+	}
+	if imageType != "avatar" && imageType != "banner" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid image type"})
+	}
+
+	dir := filepath.Join("../data/teams", teamID)
+	for ext := range allowedImageExts {
+		p := filepath.Join(dir, imageType+ext)
+		if _, err := os.Stat(p); err == nil {
+			c.Set("Cache-Control", "public, max-age=3600")
+			return c.SendFile(p)
+		}
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Image not found"})
 }

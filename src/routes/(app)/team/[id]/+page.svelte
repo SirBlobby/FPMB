@@ -66,7 +66,7 @@
 						.filter((c) => c.due_date)
 						.map((c) => ({
 							id: c.id,
-							date: c.due_date.split("T")[0],
+							date: c.due_date!.split("T")[0],
 							title: c.title,
 							projectName: projectData[i].name,
 							projectId: projectData[i].id,
@@ -147,7 +147,7 @@
 			class="bg-neutral-800 rounded-xl border border-neutral-700 shadow-sm overflow-hidden shrink-0 relative"
 		>
 			<div
-				class="h-32 bg-gradient-to-r from-blue-900/40 to-purple-900/40 relative"
+				class="h-32 bg-linear-to-r from-blue-900/40 to-purple-900/40 relative"
 			>
 				{#if team.banner_url}
 					<img
@@ -203,7 +203,7 @@
 					</div>
 				</div>
 
-				<div class="flex items-center space-x-3 pb-2">
+				<div class="flex flex-wrap items-center gap-3 pb-2 mt-4 md:mt-0">
 					<a
 						href="/team/{teamId}/calendar"
 						class="bg-neutral-700 hover:bg-neutral-600 text-white font-medium py-2 px-4 rounded-md shadow-sm border border-neutral-600 transition-colors flex items-center gap-2 text-sm"

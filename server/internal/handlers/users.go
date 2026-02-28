@@ -153,7 +153,7 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 
 	col := database.GetCollection("users")
 	if _, err := col.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{
-		"avatar_url": "/api/users/me/avatar",
+		"avatar_url": "/api/avatar/" + userID.Hex(),
 		"updated_at": time.Now(),
 	}}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
@@ -177,6 +177,24 @@ func ServeUserAvatar(c *fiber.Ctx) error {
 	for ext := range allowedImageExts {
 		p := filepath.Join(dir, "avatar"+ext)
 		if _, err := os.Stat(p); err == nil {
+			return c.SendFile(p)
+		}
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Avatar not found"})
+}
+
+func ServePublicAvatar(c *fiber.Ctx) error {
+	userID := c.Params("userId")
+	if _, err := primitive.ObjectIDFromHex(userID); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
+	dir := filepath.Join("../data/users", userID)
+	for ext := range allowedImageExts {
+		p := filepath.Join(dir, "avatar"+ext)
+		if _, err := os.Stat(p); err == nil {
+			c.Set("Cache-Control", "public, max-age=3600")
 			return c.SendFile(p)
 		}
 	}

@@ -76,13 +76,16 @@
 	/>
 </svelte:head>
 
-<div class="flex flex-col -m-6 p-6 overflow-hidden h-full">
+<div class="flex flex-col md:-m-6 md:p-6 overflow-hidden h-full">
 	<div
-		class="flex flex-1 overflow-hidden rounded-lg border border-neutral-700 bg-neutral-800 shadow-sm h-full"
+		class="flex flex-col md:flex-row flex-1 overflow-hidden md:rounded-lg md:border border-neutral-700 bg-neutral-800 shadow-sm h-full"
 	>
 		<!-- Sidebar List -->
 		<div
-			class="w-80 border-r border-neutral-700 flex flex-col shrink-0 bg-neutral-850"
+			class="w-full md:w-80 md:border-r border-b md:border-b-0 border-neutral-700 flex flex-col shrink-0 bg-neutral-850 {activeDoc &&
+			!isEditing
+				? 'hidden md:flex'
+				: 'flex'}"
 		>
 			<div
 				class="p-4 border-b border-neutral-700 flex items-center justify-between"
@@ -137,7 +140,12 @@
 		</div>
 
 		<!-- Main Content Area -->
-		<div class="flex-1 flex flex-col min-w-0 bg-neutral-900 overflow-hidden">
+		<div
+			class="flex-1 flex flex-col min-w-0 bg-neutral-900 overflow-hidden {!activeDoc ||
+			(!isEditing && !activeDoc)
+				? 'hidden md:flex'
+				: 'flex'}"
+		>
 			{#if activeDoc}
 				<div
 					class="flex items-center justify-between px-8 py-4 border-b border-neutral-700 bg-neutral-850 shrink-0"
@@ -147,13 +155,30 @@
 							<input
 								type="text"
 								bind:value={editTitle}
-								class="block w-full px-3 py-1.5 border border-neutral-600 rounded-md bg-neutral-800 text-white text-lg font-semibold focus:ring-blue-500 focus:border-blue-500"
+								class="text-2xl font-bold bg-transparent border-b border-neutral-600 focus:border-blue-500 focus:outline-none w-full text-white pb-1"
+								placeholder="Document title"
 							/>
 						{:else}
-							<h1 class="text-xl font-bold text-white truncate">
-								{activeDoc.title}
-							</h1>
-							<p class="text-xs text-neutral-500 mt-0.5">
+							<div class="flex items-center gap-3">
+								<button
+									class="md:hidden text-neutral-400 hover:text-white mr-1"
+									onclick={() => {
+										activeDoc = null;
+										isEditing = false;
+									}}
+									title="Back to list"
+								>
+									<Icon icon="lucide:arrow-left" class="w-5 h-5" />
+								</button>
+								<h2
+									class="text-2xl font-bold text-white truncate wrap-break-word"
+								>
+									{activeDoc.title}
+								</h2>
+							</div>
+							<p
+								class="text-sm text-neutral-500 mt-1.5 flex items-center gap-2"
+							>
 								Last updated {new Date(activeDoc.updated_at).toLocaleDateString(
 									"en-US",
 									{ month: "2-digit", day: "2-digit", year: "numeric" },

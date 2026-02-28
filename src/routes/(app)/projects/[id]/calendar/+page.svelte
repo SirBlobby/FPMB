@@ -18,14 +18,14 @@
 
 	let calendarEvents = $derived(
 		rawEvents.map((e) => {
-			const dt = new Date(e.start_time);
+			const dt = new Date(e.date + "T" + (e.time || "00:00"));
 			const hours = dt.getHours();
 			const minutes = dt.getMinutes().toString().padStart(2, "0");
 			const ampm = hours >= 12 ? "PM" : "AM";
 			const h = hours % 12 || 12;
 			return {
 				id: e.id,
-				date: e.start_time.split("T")[0],
+				date: e.date,
 				title: e.title,
 				time: `${h}:${minutes} ${ampm}`,
 				color: "blue",
@@ -50,14 +50,12 @@
 		saving = true;
 		error = "";
 		try {
-			const startTime = newEvent.time
-				? new Date(`${newEvent.date}T${newEvent.time}`).toISOString()
-				: new Date(`${newEvent.date}T00:00:00`).toISOString();
 			const created = await projectsApi.createEvent(projectId, {
 				title: newEvent.title,
 				description: newEvent.description,
-				start_time: startTime,
-				end_time: startTime,
+				date: newEvent.date,
+				time: newEvent.time,
+				color: "blue", // Hardcoded color since no color selector is present in this form yet
 			});
 			rawEvents = [...rawEvents, created];
 			isModalOpen = false;
@@ -85,6 +83,7 @@
 		<div class="flex items-center space-x-4">
 			<a
 				href="/projects"
+				aria-label="Back to projects"
 				class="text-neutral-400 hover:text-white transition-colors p-2 rounded-md hover:bg-neutral-800 border border-transparent"
 			>
 				<Icon icon="lucide:arrow-left" class="w-5 h-5" />
@@ -148,10 +147,12 @@
 					<p class="text-sm text-red-400">{error}</p>
 				{/if}
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Title</label
+					<label
+						for="event-title"
+						class="block text-sm font-medium text-neutral-300 mb-1">Title</label
 					>
 					<input
+						id="event-title"
 						type="text"
 						bind:value={newEvent.title}
 						required
@@ -160,10 +161,13 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="event-desc"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Description</label
 					>
 					<textarea
+						id="event-desc"
 						bind:value={newEvent.description}
 						rows="2"
 						placeholder="Optional description"
@@ -172,10 +176,13 @@
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-neutral-300 mb-1"
+						<label
+							for="event-date"
+							class="block text-sm font-medium text-neutral-300 mb-1"
 							>Date</label
 						>
 						<input
+							id="event-date"
 							type="date"
 							bind:value={newEvent.date}
 							required
@@ -183,10 +190,13 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-neutral-300 mb-1"
+						<label
+							for="event-time"
+							class="block text-sm font-medium text-neutral-300 mb-1"
 							>Time</label
 						>
 						<input
+							id="event-time"
 							type="time"
 							bind:value={newEvent.time}
 							class="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-700 text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"

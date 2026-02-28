@@ -15,6 +15,8 @@
 	let loadingMore = $state(false);
 	let hasMore = $state(true);
 	let sending = $state(false);
+	let replyingTo = $state<ChatMessage | null>(null);
+	let editingMessage = $state<ChatMessage | null>(null);
 
 	let ws: WebSocket | null = null;
 	let wsConnected = $state(false);
@@ -87,6 +89,28 @@
 			}
 		}
 
+		if (type === "edit" && msg.message_id && msg.content) {
+			const targetIdx = messages.findIndex((m) => m.id === msg.message_id);
+			if (targetIdx !== -1) {
+				messages[targetIdx] = {
+					...messages[targetIdx],
+					content: msg.content as string,
+					edited_at: msg.edited_at as string,
+				};
+			}
+		}
+
+		if (type === "delete" && msg.message_id) {
+			const targetIdx = messages.findIndex((m) => m.id === msg.message_id);
+			if (targetIdx !== -1) {
+				messages[targetIdx] = {
+					...messages[targetIdx],
+					content: "",
+					deleted: true,
+				};
+			}
+		}
+
 		if (
 			type === "typing" &&
 			typeof msg.user_id === "string" &&
@@ -156,14 +180,69 @@
 		const content = newMessage.trim();
 		if (!content || !ws || ws.readyState !== WebSocket.OPEN) return;
 		sending = true;
-		ws.send(JSON.stringify({ type: "message", content }));
+
+		if (editingMessage) {
+			ws.send(
+				JSON.stringify({
+					type: "edit",
+					content,
+					message_id: editingMessage.id,
+				}),
+			);
+			editingMessage = null;
+		} else {
+			const payload: any = { type: "message", content };
+			if (replyingTo) {
+				payload.reply_to = replyingTo.id;
+				replyingTo = null;
+			}
+			ws.send(JSON.stringify(payload));
+		}
+
 		newMessage = "";
 		sending = false;
 		shouldAutoScroll = true;
 		requestAnimationFrame(() => inputEl?.focus());
 	}
 
+	function cancelAction() {
+		replyingTo = null;
+		if (editingMessage) {
+			editingMessage = null;
+			newMessage = "";
+		}
+		inputEl?.focus();
+	}
+
+	function startEdit(msg: ChatMessage) {
+		editingMessage = msg;
+		replyingTo = null;
+		newMessage = msg.content;
+		inputEl?.focus();
+	}
+
+	function startReply(msg: ChatMessage) {
+		replyingTo = msg;
+		editingMessage = null;
+		inputEl?.focus();
+	}
+
+	function deleteMessage(msgId: string) {
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({ type: "delete", message_id: msgId }));
+		}
+	}
+
+	function resolveReplyMessage(replyId?: string): ChatMessage | undefined {
+		if (!replyId) return undefined;
+		return messages.find((m) => m.id === replyId);
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === "Escape") {
+			cancelAction();
+			return;
+		}
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
 			sendMessage();
@@ -333,8 +412,8 @@
 				>
 					<div
 						class="w-1.5 h-1.5 rounded-full {wsConnected
-							? 'bg-emerald-400 shadow-[0_0_6px_theme(colors.emerald.400)]'
-							: 'bg-red-400 shadow-[0_0_6px_theme(colors.red.400)]'}"
+							? 'bg-emerald-400 shadow-[0_0_6px_var(--color-emerald-400)]'
+							: 'bg-red-400 shadow-[0_0_6px_var(--color-red-400)]'}"
 					></div>
 					<span
 						class="text-[10px] font-medium {wsConnected
@@ -368,7 +447,7 @@
 			{:else if messages.length === 0}
 				<div class="flex flex-col items-center justify-center h-64 text-center">
 					<div
-						class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/20 flex items-center justify-center mb-5"
+						class="w-20 h-20 rounded-2xl bg-linear-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/20 flex items-center justify-center mb-5"
 					>
 						<Icon icon="lucide:message-circle" class="w-9 h-9 text-blue-400" />
 					</div>
@@ -401,8 +480,9 @@
 
 				{#each messages as msg, idx}
 					{@const isMe = msg.user_id === myId}
-					{@const showHeader = shouldShowHeader(idx)}
+					{@const showHeader = shouldShowHeader(idx) || msg.reply_to}
 					{@const showDate = shouldShowDate(idx)}
+					{@const replyMsg = resolveReplyMessage(msg.reply_to)}
 
 					{#if showDate}
 						<div class="flex items-center gap-3 py-3 my-2">
@@ -417,38 +497,123 @@
 
 					<div
 						class="group relative {showHeader
-							? 'mt-5'
-							: 'mt-0.5'} rounded-lg hover:bg-white/[0.02] px-2 py-0.5 -mx-2 transition-colors"
+							? 'mt-3'
+							: 'mt-0.5'} rounded-lg hover:bg-neutral-800/40 px-3 py-1 -mx-3 transition-colors flex items-start self-stretch"
 					>
-						{#if showHeader}
-							<div class="flex items-center gap-2.5 mb-1">
-								<div
-									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-md"
-									style="background-color: {getAvatarColor(msg.user_name)}"
-								>
-									{msg.user_name.charAt(0).toUpperCase()}
+						<!-- Left section: Content -->
+						<div class="flex-1 min-w-0 pr-8">
+							{#if replyMsg}
+								<div class="flex items-center gap-2 mb-1 ml-[34px]">
+									<div class="w-6 h-px bg-neutral-700"></div>
+									<Icon
+										icon="lucide:corner-down-right"
+										class="w-3 h-3 text-neutral-500 shrink-0"
+									/>
+									<img
+										src={team?.avatar_url || ""}
+										alt=""
+										class="w-3 h-3 rounded-full hidden"
+									/>
+									<span
+										class="text-[11px] text-neutral-500 font-medium truncate max-w-[200px]"
+									>
+										{replyMsg.user_name}
+									</span>
+									<span
+										class="text-[11px] text-neutral-600 truncate max-w-full italic"
+									>
+										{replyMsg.deleted
+											? "Deleted message"
+											: replyMsg.content.slice(0, 60)}
+									</span>
 								</div>
-								<span
-									class="text-[13px] font-semibold {isMe
-										? 'text-blue-300'
-										: 'text-neutral-100'}">{isMe ? "You" : msg.user_name}</span
-								>
-								<span class="text-[11px] text-neutral-600"
-									>{formatTime(msg.created_at)}</span
+							{/if}
+
+							{#if showHeader}
+								<div class="flex items-center gap-2.5 mb-1">
+									<div
+										class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-md"
+										style="background-color: {getAvatarColor(msg.user_name)}"
+									>
+										{msg.user_name.charAt(0).toUpperCase()}
+									</div>
+									<span
+										class="text-[13px] font-semibold {isMe
+											? 'text-blue-300'
+											: 'text-neutral-200'}"
+									>
+										{isMe ? "You" : msg.user_name}
+									</span>
+									<span class="text-[11px] text-neutral-500">
+										{formatTime(msg.created_at)}
+									</span>
+								</div>
+							{/if}
+
+							<div class={showHeader ? "pl-[38px]" : "pl-[38px]"}>
+								{#if msg.deleted}
+									<p
+										class="text-[13px] text-neutral-500 italic flex items-center gap-1.5"
+									>
+										<Icon icon="lucide:ban" class="w-3.5 h-3.5" />
+										This message was deleted
+									</p>
+								{:else}
+									<p
+										class="text-[13.5px] text-neutral-300 leading-normal whitespace-pre-wrap wrap-break-word"
+									>
+										{msg.content}
+										{#if msg.edited_at}
+											<span
+												class="text-[10px] text-neutral-500 italic ml-1 select-none"
+												>(edited)</span
+											>
+										{/if}
+									</p>
+								{/if}
+							</div>
+						</div>
+
+						{#if !showHeader && !msg.deleted}
+							<div
+								class="absolute left-2 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+							>
+								<span class="text-[10px] text-neutral-600"
+									>{formatTime(msg.created_at).split(" ")[0]}</span
 								>
 							</div>
 						{/if}
-						<div class={showHeader ? "pl-[42px]" : "pl-[42px]"}>
-							<p
-								class="text-[13.5px] text-neutral-300 leading-[1.55] whitespace-pre-wrap wrap-break-word"
-							>
-								{msg.content}
-							</p>
-						</div>
-						<span
-							class="absolute right-2 top-1 text-[10px] text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity"
-							>{formatTime(msg.created_at)}</span
+
+						<!-- Right section: Hover Actions -->
+						<div
+							class="absolute right-3 top-[-10px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-neutral-800 border border-neutral-700 shadow-md rounded-md overflow-hidden z-10"
 						>
+							{#if !msg.deleted}
+								<button
+									onclick={() => startReply(msg)}
+									class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors"
+									title="Reply"
+								>
+									<Icon icon="lucide:reply" class="w-3.5 h-3.5" />
+								</button>
+								{#if isMe}
+									<button
+										onclick={() => startEdit(msg)}
+										class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors"
+										title="Edit"
+									>
+										<Icon icon="lucide:pencil" class="w-3.5 h-3.5" />
+									</button>
+									<button
+										onclick={() => deleteMessage(msg.id)}
+										class="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-neutral-700/50 transition-colors border-l border-neutral-700"
+										title="Delete"
+									>
+										<Icon icon="lucide:trash-2" class="w-3.5 h-3.5" />
+									</button>
+								{/if}
+							{/if}
+						</div>
 					</div>
 				{/each}
 			{/if}
@@ -500,13 +665,49 @@
 		class="shrink-0 border-t border-neutral-700/60 bg-neutral-800/40 backdrop-blur-sm px-5 py-3"
 	>
 		<div class="max-w-4xl mx-auto">
+			{#if replyingTo || editingMessage}
+				<div class="mb-2 flex items-center justify-between text-xs px-1">
+					<div
+						class="flex items-center gap-2 text-neutral-400 overflow-hidden text-ellipsis whitespace-nowrap"
+					>
+						<Icon
+							icon={editingMessage ? "lucide:pencil" : "lucide:reply"}
+							class="w-3.5 h-3.5 text-blue-400 shrink-0"
+						/>
+						<span class="font-medium text-blue-300">
+							{editingMessage
+								? "Editing message"
+								: `Replying to ${replyingTo?.user_name}`}
+						</span>
+						<span
+							class="text-neutral-500 overflow-hidden text-ellipsis whitespace-nowrap"
+						>
+							{(editingMessage?.content || replyingTo?.content || "").slice(
+								0,
+								100,
+							)}
+						</span>
+					</div>
+					<button
+						onclick={cancelAction}
+						class="shrink-0 p-1 hover:text-white transition-colors"
+						title="Cancel"
+					>
+						<Icon icon="lucide:x" class="w-3.5 h-3.5" />
+					</button>
+				</div>
+			{/if}
 			<div class="flex items-end gap-2.5">
 				<div class="flex-1 relative">
 					<textarea
 						bind:this={inputEl}
 						bind:value={newMessage}
 						onkeydown={handleKeydown}
-						placeholder={wsConnected ? "Type a message…" : "Connecting…"}
+						placeholder={wsConnected
+							? editingMessage
+								? "Edit message..."
+								: "Type a message…"
+							: "Connecting…"}
 						rows="1"
 						class="w-full resize-none bg-neutral-800 border border-neutral-600/80 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all max-h-32"
 						disabled={!wsConnected}
@@ -519,9 +720,12 @@
 					wsConnected
 						? 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-95'
 						: 'bg-neutral-800 text-neutral-600 border border-neutral-700 cursor-not-allowed'}"
-					title="Send (Enter)"
+					title={editingMessage ? "Save Edit (Enter)" : "Send (Enter)"}
 				>
-					<Icon icon="lucide:send" class="w-5 h-5" />
+					<Icon
+						icon={editingMessage ? "lucide:check" : "lucide:send"}
+						class="w-5 h-5"
+					/>
 				</button>
 			</div>
 		</div>

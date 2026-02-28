@@ -70,7 +70,7 @@
 						.filter((c) => c.due_date)
 						.map((c) => ({
 							id: c.id,
-							date: c.due_date.split("T")[0],
+							date: c.due_date!.split("T")[0],
 							title: c.title,
 							time: "",
 							color: priorityColor[c.priority] ?? "blue",
@@ -128,6 +128,7 @@
 		<div class="flex items-center space-x-4">
 			<a
 				href="/team/{teamId}"
+				aria-label="Back to Team"
 				class="text-neutral-400 hover:text-white transition-colors p-2 rounded-md hover:bg-neutral-800 border border-transparent"
 			>
 				<Icon icon="lucide:arrow-left" class="w-5 h-5" />
@@ -187,10 +188,12 @@
 					<p class="text-sm text-red-400">{error}</p>
 				{/if}
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Title</label
+					<label
+						for="event-title"
+						class="block text-sm font-medium text-neutral-300 mb-1">Title</label
 					>
 					<input
+						id="event-title"
 						type="text"
 						bind:value={newEvent.title}
 						required
@@ -199,10 +202,13 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
+					<label
+						for="event-desc"
+						class="block text-sm font-medium text-neutral-300 mb-1"
 						>Description</label
 					>
 					<textarea
+						id="event-desc"
 						bind:value={newEvent.description}
 						rows="2"
 						placeholder="Optional description"
@@ -211,10 +217,13 @@
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-neutral-300 mb-1"
+						<label
+							for="event-date"
+							class="block text-sm font-medium text-neutral-300 mb-1"
 							>Date</label
 						>
 						<input
+							id="event-date"
 							type="date"
 							bind:value={newEvent.date}
 							required
@@ -222,10 +231,13 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-neutral-300 mb-1"
+						<label
+							for="event-time"
+							class="block text-sm font-medium text-neutral-300 mb-1"
 							>Time</label
 						>
 						<input
+							id="event-time"
 							type="text"
 							bind:value={newEvent.time}
 							placeholder="e.g. 10:00 AM"
@@ -234,10 +246,12 @@
 					</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-neutral-300 mb-1"
-						>Color</label
+					<label
+						for="event-color"
+						class="block text-sm font-medium text-neutral-300 mb-1">Color</label
 					>
 					<select
+						id="event-color"
 						bind:value={newEvent.color}
 						class="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-700 text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
 					>

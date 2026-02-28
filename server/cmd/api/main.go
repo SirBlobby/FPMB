@@ -124,6 +124,10 @@ func main() {
 	auth.Post("/refresh", handlers.RefreshToken)
 	auth.Post("/logout", middleware.Protected(), handlers.Logout)
 
+	// Public avatar/media routes (no auth needed for <img> tags)
+	api.Get("/avatar/:userId", handlers.ServePublicAvatar)
+	api.Get("/team-media/:teamId/:imageType", handlers.ServePublicTeamImage)
+
 	users := api.Group("/users", middleware.Protected())
 	users.Get("/me", handlers.GetMe)
 	users.Put("/me", handlers.UpdateMe)

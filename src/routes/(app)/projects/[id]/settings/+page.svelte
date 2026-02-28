@@ -85,6 +85,7 @@
 	<div class="flex items-center space-x-4 mb-2">
 		<a
 			href="/projects"
+			aria-label="Back to projects"
 			class="text-neutral-400 hover:text-white transition-colors p-2 rounded-md hover:bg-neutral-800 border border-transparent"
 		>
 			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"

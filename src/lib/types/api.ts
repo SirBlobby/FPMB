@@ -70,8 +70,10 @@ export interface Card {
 	description: string;
 	priority: string;
 	color: string;
-	due_date: string;
+	due_date?: string;
 	assignees: string[];
+	estimated_minutes?: number;
+	actual_minutes?: number;
 	subtasks: Subtask[];
 	position: number;
 	created_by: string;
@@ -150,6 +152,7 @@ export interface Webhook {
 	type: string;
 	url: string;
 	status: string;
+	active?: boolean;
 	last_triggered?: string;
 	created_by: string;
 	created_at: string;
@@ -189,5 +192,8 @@ export interface ChatMessage {
 	user_id: string;
 	user_name: string;
 	content: string;
+	reply_to?: string;
+	edited_at?: string;
+	deleted?: boolean;
 	created_at: string;
 }
